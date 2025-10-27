@@ -1,0 +1,103 @@
+{
+  "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+  "palette": {
+    "session_bg": "#EFFECD",
+    "session_fg": "#000000",
+    "path_bg": "#39D0A8",
+    "path_fg": "#000000",
+    "venv_bg": "#ED6A5A",
+    "venv_fg": "#000000",
+    "git_bg": "#3C91E6",
+    "git_fg": "#000000",
+    "git_diverged": "#FFCC80",
+    "git_ahead": "#B388FF",
+    "git_behind": "#FF5370",
+    "git_dirty": "#FFC600",
+    "git_staged": "#FF6F00",
+    "prompt_fg": "#EFFECD"
+  },
+  "maps": {
+    "user_name": {
+      "christian": "CG"
+    },
+    "host_name": {
+      "Christian-LT": "LT"
+    }
+  },
+  "blocks": [
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "segments": [
+        {
+          "properties": {
+            "display_host": false,
+            "display_user": true
+          },
+          "leading_diamond": "\ue0b6",
+          "trailing_diamond": "\ue0b0",
+          "template": "{{ .UserName }}@{{ .HostName }}",
+          "foreground": "p:session_fg",
+          "background": "p:session_bg",
+          "type": "session",
+          "style": "diamond"
+        },
+        {
+          "properties": {
+            "enable_hyperlink": true,
+            "style": "folder"
+          },
+          "leading_diamond": "<transparent,background>\ue0b0</>",
+          "trailing_diamond": "\ue0b0",
+          "template": " {{ .Path }} ",
+          "foreground": "p:path_fg",
+          "background": "p:path_bg",
+          "type": "path",
+          "style": "diamond"
+        },
+        {
+          "leading_diamond": "<transparent,background>\ue0b0</>",
+          "trailing_diamond": "\ue0b0",
+          "template": "{{ if .Env.VIRTUAL_ENV }}{{ .Env.VIRTUAL_ENV | base }} {{ end }}",
+          "foreground": "p:venv_fg",
+          "background": "p:venv_bg",
+          "type": "session",
+          "style": "diamond"
+        },
+        {
+          "properties": {
+            "fetch_status": true
+          },
+          "leading_diamond": "<transparent,background>\ue0b0</>",
+          "trailing_diamond": "\ue0b4",
+          "template": " {{ .HEAD }}{{ if gt .Ahead 0 }} \uf062 {{ .Ahead }}{{ end }}{{ if gt .Behind 0 }} \uf063 {{ .Behind }}{{ end }}{{ if .Staging.Changed }}<p:git_staged> \uf046 {{ .Staging.String }}</>{{ end }}{{ if and (.Working.Changed) (.Staging.Changed) }} |{{ end }}{{ if .Working.Changed }} \uf044 {{ .Working.String }}{{ end }}{{ if gt .StashCount 0 }} \ueb4b {{ .StashCount }}{{ end }} ",
+          "foreground": "p:git_fg",
+          "background": "p:git_bg",
+          "type": "git",
+          "style": "diamond",
+          "background_templates": [
+            "{{ if and (gt .Ahead 0) (gt .Behind 0) }}p:git_diverged{{ end }}",
+            "{{ if gt .Ahead 0 }}p:git_ahead{{ end }}",
+            "{{ if gt .Behind 0 }}p:git_behind{{ end }}",
+            "{{ if or (.Working.Changed) (.Staging.Changed) }}p:git_dirty{{ end }}"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "segments": [
+        {
+          "template": "❯",
+          "foreground": "p:prompt_fg",
+          "type": "text",
+          "style": "plain"
+        }
+      ],
+      "newline": true
+    }
+  ],
+  "version": 3,
+  "final_space": true
+}
