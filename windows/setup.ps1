@@ -86,23 +86,36 @@ if (-not (Test-Path -Path $profileDir)) {
     New-Item -Path $profileDir -ItemType Directory -Force | Out-Null
 }
 
-# Repo root (parent of windows/ folder)
-$repoRoot = Split-Path $PSScriptRoot -Parent
-
-# Use local profile from this repo (not Chris Titus). Update-Profile still fetches upstream updates.
-$profileSource = Join-Path $PSScriptRoot "Microsoft.PowerShell_profile.ps1"
+# Repo URLs (when run via irm | iex, $PSScriptRoot is empty - use remote)
+$repoRawBase = "https://raw.githubusercontent.com/ChristianG-Solideon/Powershell-setup/main"
+$profileUrlFromRepo = "$repoRawBase/windows/Microsoft.PowerShell_profile.ps1"
 $profileUrlFallback = "https://github.com/ChrisTitusTech/powershell-profile/raw/main/Microsoft.PowerShell_profile.ps1"
 $profileNote = "If you want personal changes, use [$profileDir\Profile.ps1] - the installed profile uses a hash-based updater that overwrites direct edits."
 
+$profileSource = $null
+$repoRoot = $null
+if ($PSScriptRoot) {
+    $repoRoot = Split-Path $PSScriptRoot -Parent
+    $profileSource = Join-Path $PSScriptRoot "Microsoft.PowerShell_profile.ps1"
+}
+
+$useLocalProfile = $profileSource -and (Test-Path $profileSource)
+
 if (-not (Test-Path -Path $PROFILE -PathType Leaf)) {
     try {
-        if (Test-Path $profileSource) {
+        if ($useLocalProfile) {
             Copy-Item -Path $profileSource -Destination $PROFILE -Force
             Write-Host "Profile created at [$PROFILE] (from this repo)"
         }
         else {
-            Invoke-RestMethod $profileUrlFallback -OutFile $PROFILE
-            Write-Host "Profile created at [$PROFILE] (from Chris Titus - local file not found)"
+            try {
+                Invoke-RestMethod $profileUrlFromRepo -OutFile $PROFILE
+                Write-Host "Profile created at [$PROFILE] (from this repo)"
+            }
+            catch {
+                Invoke-RestMethod $profileUrlFallback -OutFile $PROFILE
+                Write-Host "Profile created at [$PROFILE] (from Chris Titus - repo unavailable)"
+            }
         }
         Write-Host "NOTE: $profileNote"
     }
@@ -114,13 +127,19 @@ else {
     try {
         $backupPath = Join-Path (Split-Path $PROFILE) "oldprofile.ps1"
         Move-Item -Path $PROFILE -Destination $backupPath -Force
-        if (Test-Path $profileSource) {
+        if ($useLocalProfile) {
             Copy-Item -Path $profileSource -Destination $PROFILE -Force
             Write-Host "Profile updated at [$PROFILE] from this repo. Backup saved to [$backupPath]"
         }
         else {
-            Invoke-RestMethod $profileUrlFallback -OutFile $PROFILE
-            Write-Host "Profile updated at [$PROFILE] from Chris Titus. Backup saved to [$backupPath]"
+            try {
+                Invoke-RestMethod $profileUrlFromRepo -OutFile $PROFILE
+                Write-Host "Profile updated at [$PROFILE] from this repo. Backup saved to [$backupPath]"
+            }
+            catch {
+                Invoke-RestMethod $profileUrlFallback -OutFile $PROFILE
+                Write-Host "Profile updated at [$PROFILE] from Chris Titus. Backup saved to [$backupPath]"
+            }
         }
         Write-Host "NOTE: $profileNote"
     }
@@ -131,28 +150,45 @@ else {
 
 # Copy my_layout.omp.json from repo (cobalt2 fallback if not found)
 $themeDest = Join-Path $profileDir "my_layout.omp.json"
-$themeSrc = Join-Path $repoRoot "my_layout.omp.json"
-if (Test-Path $themeSrc) {
+$themeSrc = if ($repoRoot) { Join-Path $repoRoot "my_layout.omp.json" } else { $null }
+if ($themeSrc -and (Test-Path $themeSrc)) {
     Copy-Item -Path $themeSrc -Destination $themeDest -Force
     Write-Host "Custom theme (my_layout.omp.json) copied to profile directory."
 }
 else {
-    Write-Warning "my_layout.omp.json not found in repo, using cobalt2 fallback"
     try {
-        Invoke-RestMethod -Uri "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json" -OutFile $themeDest
-        Write-Host "Theme (cobalt2) downloaded to profile directory."
+        Invoke-RestMethod -Uri "$repoRawBase/my_layout.omp.json" -OutFile $themeDest
+        Write-Host "Custom theme (my_layout.omp.json) downloaded to profile directory."
     }
     catch {
-        Write-Error "Failed to download theme. Error: $_"
+        Write-Warning "my_layout.omp.json not found in repo, using cobalt2 fallback"
+        try {
+            Invoke-RestMethod -Uri "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json" -OutFile $themeDest
+            Write-Host "Theme (cobalt2) downloaded to profile directory."
+        }
+        catch {
+            Write-Error "Failed to download theme. Error: $_"
+        }
     }
 }
 
 # Copy profile.ps1 template if it doesn't exist
-$profilePs1Src = Join-Path $PSScriptRoot "profile.ps1"
 $profilePs1Dest = Join-Path $profileDir "Profile.ps1"
-if ((Test-Path $profilePs1Src) -and -not (Test-Path $profilePs1Dest)) {
-    Copy-Item -Path $profilePs1Src -Destination $profilePs1Dest -Force
-    Write-Host "Profile.ps1 template copied. Edit it for custom theme and overrides."
+if (-not (Test-Path $profilePs1Dest)) {
+    $profilePs1Src = if ($PSScriptRoot) { Join-Path $PSScriptRoot "profile.ps1" } else { $null }
+    if ($profilePs1Src -and (Test-Path $profilePs1Src)) {
+        Copy-Item -Path $profilePs1Src -Destination $profilePs1Dest -Force
+        Write-Host "Profile.ps1 template copied. Edit it for custom theme and overrides."
+    }
+    else {
+        try {
+            Invoke-RestMethod -Uri "$repoRawBase/windows/profile.ps1" -OutFile $profilePs1Dest
+            Write-Host "Profile.ps1 template downloaded. Edit it for custom theme and overrides."
+        }
+        catch {
+            Write-Warning "Could not download profile.ps1 template"
+        }
+    }
 }
 
 #endregion
