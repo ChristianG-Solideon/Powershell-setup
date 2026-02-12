@@ -92,14 +92,25 @@ $profileUrlFromRepo = "$repoRawBase/windows/Microsoft.PowerShell_profile.ps1"
 $profileUrlFallback = "https://github.com/ChrisTitusTech/powershell-profile/raw/main/Microsoft.PowerShell_profile.ps1"
 $profileNote = "If you want personal changes, use [$profileDir\Profile.ps1] - the installed profile uses a hash-based updater that overwrites direct edits."
 
+# When run via "irm | iex", $PSScriptRoot is empty - use remote downloads only
 $profileSource = $null
 $repoRoot = $null
-if ($PSScriptRoot) {
-    $repoRoot = Split-Path $PSScriptRoot -Parent
-    $profileSource = Join-Path $PSScriptRoot "Microsoft.PowerShell_profile.ps1"
+if ($PSScriptRoot -and ([string]::IsNullOrWhiteSpace($PSScriptRoot) -eq $false)) {
+    try {
+        $scriptDir = $PSScriptRoot.Trim()
+        if ((Test-Path -LiteralPath $scriptDir -PathType Container -ErrorAction SilentlyContinue) -and
+            (Test-Path -LiteralPath (Join-Path $scriptDir "Microsoft.PowerShell_profile.ps1") -ErrorAction SilentlyContinue)) {
+            $repoRoot = Split-Path -Path $scriptDir -Parent -ErrorAction Stop
+            $profileSource = Join-Path -Path $scriptDir -ChildPath "Microsoft.PowerShell_profile.ps1"
+        }
+    }
+    catch {
+        $profileSource = $null
+        $repoRoot = $null
+    }
 }
 
-$useLocalProfile = $profileSource -and (Test-Path $profileSource)
+$useLocalProfile = $null -ne $profileSource -and (Test-Path -LiteralPath $profileSource)
 
 if (-not (Test-Path -Path $PROFILE -PathType Leaf)) {
     try {
@@ -175,7 +186,7 @@ else {
 # Copy profile.ps1 template if it doesn't exist
 $profilePs1Dest = Join-Path $profileDir "Profile.ps1"
 if (-not (Test-Path $profilePs1Dest)) {
-    $profilePs1Src = if ($PSScriptRoot) { Join-Path $PSScriptRoot "profile.ps1" } else { $null }
+    $profilePs1Src = if ($profileSource) { Join-Path (Split-Path $profileSource -Parent) "profile.ps1" } else { $null }
     if ($profilePs1Src -and (Test-Path $profilePs1Src)) {
         Copy-Item -Path $profilePs1Src -Destination $profilePs1Dest -Force
         Write-Host "Profile.ps1 template copied. Edit it for custom theme and overrides."
