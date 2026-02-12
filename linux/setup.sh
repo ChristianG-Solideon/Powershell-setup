@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 # Bash setup script - installs profile, Oh My Posh, Nerd Fonts, zoxide, and utilities
 # Supports Linux, macOS, and WSL
+#
+# Run from GitHub: curl -sL "https://github.com/ChristianG-Solideon/Powershell-setup/raw/main/linux/setup.sh" | bash
 
 set -e
+
+# Repo URL for remote mode (when run via curl | bash). Override with first arg if needed.
+REPO_URL="${1:-https://github.com/ChristianG-Solideon/Powershell-setup}"
+REPO_RAW_BASE=""
+if [[ -n "$REPO_URL" ]]; then
+    # Convert github.com/owner/repo to raw.githubusercontent.com/owner/repo/main
+    REPO_RAW_BASE="${REPO_URL/https:\/\/github.com/https://raw.githubusercontent.com}"
+    REPO_RAW_BASE="${REPO_RAW_BASE/%\/}/main"
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -197,17 +208,26 @@ install_theme() {
     config_dir=$(get_config_dir)
     mkdir -p "$config_dir"
 
-    # Script dir = linux/, repo root = parent
-    local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local repo_root
-    repo_root="$(cd "$script_dir/.." && pwd)"
-    local theme_src="$repo_root/my_layout.omp.json"
     local theme_dest="$config_dir/my_layout.omp.json"
+    local theme_src=""
+    local script_dir=""
 
-    if [[ -f "$theme_src" ]]; then
+    if [[ -n "${BASH_SOURCE[0]:-}" ]] && [[ -d "$(dirname "${BASH_SOURCE[0]}")" ]]; then
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local repo_root
+        repo_root="$(cd "$script_dir/.." && pwd)"
+        theme_src="$repo_root/my_layout.omp.json"
+    fi
+
+    if [[ -f "${theme_src:-}" ]]; then
         cp "$theme_src" "$theme_dest"
         log_info "Theme copied to $theme_dest"
+    elif [[ -n "$REPO_RAW_BASE" ]]; then
+        log_info "Downloading theme from repo..."
+        curl -sL "$REPO_RAW_BASE/my_layout.omp.json" -o "$theme_dest" && log_info "Theme downloaded to $theme_dest" || {
+            log_warn "Could not download theme, using cobalt2 default"
+            curl -sL "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json" -o "$theme_dest"
+        }
     else
         log_info "Downloading cobalt2 theme..."
         curl -sL "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json" -o "$theme_dest"
@@ -221,26 +241,39 @@ setup_profile() {
     config_dir=$(get_config_dir)
     mkdir -p "$config_dir"
 
-    # Script dir = linux/, repo root = parent
-    local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local bashrc_src="$script_dir/bashrc"
+    local script_dir=""
+    if [[ -n "${BASH_SOURCE[0]:-}" ]] && [[ -d "$(dirname "${BASH_SOURCE[0]}")" ]]; then
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    fi
+
+    local bashrc_src="${script_dir:+$script_dir/bashrc}"
     local bashrc_dest="$config_dir/bashrc"
     local profile_bash="$config_dir/profile.bash"
 
-    if [[ ! -f "$bashrc_src" ]]; then
-        log_error "bashrc not found. Run setup from repo: ./linux/setup.sh"
+    if [[ -f "${bashrc_src:-}" ]]; then
+        cp "$bashrc_src" "$bashrc_dest"
+        log_info "Bash profile installed to $bashrc_dest"
+    elif [[ -n "$REPO_RAW_BASE" ]]; then
+        log_info "Downloading bashrc from repo..."
+        curl -sL "$REPO_RAW_BASE/linux/bashrc" -o "$bashrc_dest" || {
+            log_error "Could not download bashrc from repo."
+            exit 1
+        }
+        log_info "Bash profile installed to $bashrc_dest"
+    else
+        log_error "bashrc not found. Run from repo: ./linux/setup.sh"
         exit 1
     fi
 
-    cp "$bashrc_src" "$bashrc_dest"
-    log_info "Bash profile installed to $bashrc_dest"
-
     # Create profile.bash if it doesn't exist (user overrides)
     if [[ ! -f "$profile_bash" ]]; then
-        if [[ -f "$script_dir/profile.bash" ]]; then
-            cp "$script_dir/profile.bash" "$profile_bash"
-        else
+        local profile_src="${script_dir:+$script_dir/profile.bash}"
+        if [[ -f "${profile_src:-}" ]]; then
+            cp "$profile_src" "$profile_bash"
+        elif [[ -n "$REPO_RAW_BASE" ]]; then
+            curl -sL "$REPO_RAW_BASE/linux/profile.bash" -o "$profile_bash" 2>/dev/null || true
+        fi
+        if [[ ! -f "$profile_bash" ]]; then
             cat > "$profile_bash" << 'PROFILE_EOF'
 # User overrides - customize your bash experience here
 # This file is sourced after the main bashrc

@@ -25,15 +25,13 @@ A comprehensive PowerShell profile configuration that enhances your command-line
 
 **Windows (PowerShell as Administrator):**
 ```powershell
-irm "https://github.com/OWNER/Powershell-setup/raw/main/windows/setup.ps1" | iex
+irm "https://github.com/ChristianG-Solideon/Powershell-setup/raw/main/windows/setup.ps1" | iex
 ```
 
 **Linux / macOS / WSL:**
 ```bash
-git clone https://github.com/OWNER/Powershell-setup.git && cd Powershell-setup && chmod +x linux/setup.sh && ./linux/setup.sh
+curl -sL "https://github.com/ChristianG-Solideon/Powershell-setup/raw/main/linux/setup.sh" | bash
 ```
-
-Replace `OWNER` with your GitHub username (or org). For Windows, run PowerShell as Administrator.
 
 ---
 
