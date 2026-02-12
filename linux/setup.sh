@@ -353,19 +353,19 @@ PROFILE_EOF
         fi
     fi
 
-    # Linux/WSL: ensure .bashrc is sourced from .profile for login shells
-    # WSL starts a login shell, so .profile is read - it must source .bashrc
+    # Linux/WSL: re-source .bashrc at end of .profile (after PATH is set, so oh-my-posh is found)
     if [[ "$(detect_os)" == "linux" ]] || [[ "$(detect_os)" == "wsl" ]]; then
         if [[ -f "$HOME/.bash_profile" ]] && ! grep -qF '.bashrc' "$HOME/.bash_profile" 2>/dev/null; then
             echo "" >> "$HOME/.bash_profile"
             echo "[[ -f ~/.bashrc ]] && source ~/.bashrc" >> "$HOME/.bash_profile"
-            log_info "Added .bashrc source to ~/.bash_profile (WSL/login shells)"
+            log_info "Added .bashrc source to ~/.bash_profile"
         fi
-        if [[ -f "$HOME/.profile" ]] && ! grep -qE '(\.bashrc|source.*bashrc)' "$HOME/.profile" 2>/dev/null; then
+
+        if [[ -f "$HOME/.profile" ]] && ! grep -qF 'Re-source .bashrc after PATH' "$HOME/.profile" 2>/dev/null; then
             echo "" >> "$HOME/.profile"
-            echo "# Load .bashrc for interactive shells (required for WSL)" >> "$HOME/.profile"
+            echo "# Re-source .bashrc after PATH is set (oh-my-posh in ~/.local/bin)" >> "$HOME/.profile"
             echo "[[ -f ~/.bashrc ]] && . ~/.bashrc" >> "$HOME/.profile"
-            log_info "Added .bashrc source to ~/.profile (WSL/login shells)"
+            log_info "Added .bashrc re-source to end of ~/.profile (WSL/login shells)"
         fi
     fi
 }
