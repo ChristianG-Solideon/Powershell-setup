@@ -173,8 +173,6 @@ dtop() { cd "${XDG_DESKTOP_DIR:-$HOME/Desktop}" 2>/dev/null || cd ~/Desktop; }
 # Utilities
 # -----------------------------------------------------------------------------
 which() { command -v "$1"; }
-head() { command head -n "${2:-10}" "$1"; }
-tail() { command tail -n "${2:-10}" "$1"; }
 
 # Process management
 pkill() { killall "$1"; }
