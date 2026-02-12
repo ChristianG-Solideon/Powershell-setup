@@ -77,29 +77,6 @@ function Install-NerdFonts {
     }
 }
 
-function Install-OhMyPoshTheme {
-    param(
-        [string]$ThemeName = "cobalt2",
-        [string]$ThemeUrl = "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json"
-    )
-
-    $profilePath = Get-ProfileDir
-    if (-not (Test-Path -Path $profilePath)) {
-        New-Item -Path $profilePath -ItemType Directory -Force | Out-Null
-    }
-
-    $themeFilePath = Join-Path $profilePath "$ThemeName.omp.json"
-    try {
-        Invoke-RestMethod -Uri $ThemeUrl -OutFile $themeFilePath
-        Write-Host "Oh My Posh theme '$ThemeName' downloaded to [$themeFilePath]"
-        return $themeFilePath
-    }
-    catch {
-        Write-Error "Failed to download Oh My Posh theme. Error: $_"
-        return $null
-    }
-}
-
 #endregion
 
 #region Profile Setup
@@ -152,11 +129,22 @@ else {
     }
 }
 
-# Copy my_layout.omp.json from repo if it exists (for profile.ps1 Get-Theme_Override)
+# Copy my_layout.omp.json from repo (cobalt2 fallback if not found)
+$themeDest = Join-Path $profileDir "my_layout.omp.json"
 $themeSrc = Join-Path $repoRoot "my_layout.omp.json"
 if (Test-Path $themeSrc) {
-    Copy-Item -Path $themeSrc -Destination (Join-Path $profileDir "my_layout.omp.json") -Force
+    Copy-Item -Path $themeSrc -Destination $themeDest -Force
     Write-Host "Custom theme (my_layout.omp.json) copied to profile directory."
+}
+else {
+    Write-Warning "my_layout.omp.json not found in repo, using cobalt2 fallback"
+    try {
+        Invoke-RestMethod -Uri "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json" -OutFile $themeDest
+        Write-Host "Theme (cobalt2) downloaded to profile directory."
+    }
+    catch {
+        Write-Error "Failed to download theme. Error: $_"
+    }
 }
 
 # Copy profile.ps1 template if it doesn't exist
@@ -191,7 +179,7 @@ catch {
 #region Fonts & Themes
 
 $fontInstalled = Install-NerdFonts -FontName "CascadiaCode" -FontDisplayName "CaskaydiaCove NF"
-$themeInstalled = Install-OhMyPoshTheme -ThemeName "cobalt2"
+# Theme: my_layout.omp.json is copied from repo above (no cobalt2)
 
 #endregion
 

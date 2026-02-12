@@ -223,15 +223,18 @@ install_theme() {
         cp "$theme_src" "$theme_dest"
         log_info "Theme copied to $theme_dest"
     elif [[ -n "$REPO_RAW_BASE" ]]; then
-        log_info "Downloading theme from repo..."
-        curl -sL "$REPO_RAW_BASE/my_layout.omp.json" -o "$theme_dest" && log_info "Theme downloaded to $theme_dest" || {
-            log_warn "Could not download theme, using cobalt2 default"
+        log_info "Downloading theme (my_layout.omp.json) from repo..."
+        if curl -sL "$REPO_RAW_BASE/my_layout.omp.json" -o "$theme_dest"; then
+            log_info "Theme downloaded to $theme_dest"
+        else
+            log_warn "Could not download my_layout from repo, using cobalt2 fallback"
             curl -sL "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json" -o "$theme_dest"
-        }
+            log_info "Theme (cobalt2) downloaded to $theme_dest"
+        fi
     else
-        log_info "Downloading cobalt2 theme..."
+        log_warn "Repo not available, using cobalt2 fallback"
         curl -sL "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json" -o "$theme_dest"
-        log_info "Theme downloaded to $theme_dest"
+        log_info "Theme (cobalt2) downloaded to $theme_dest"
     fi
 }
 

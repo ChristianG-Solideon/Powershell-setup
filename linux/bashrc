@@ -10,6 +10,7 @@ _get_omp_config() {
     if [[ -f "$custom" ]]; then
         echo "$custom"
     else
+        # Fallback: cobalt2 (when my_layout not installed)
         echo "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json"
     fi
 }
