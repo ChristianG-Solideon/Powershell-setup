@@ -1,0 +1,307 @@
+#!/usr/bin/env bash
+# Bash setup script - installs profile, Oh My Posh, Nerd Fonts, zoxide, and utilities
+# Supports Linux, macOS, and WSL
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+log_info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
+
+# Detect OS
+detect_os() {
+    case "$(uname -s)" in
+        Linux*)
+            if grep -qi microsoft /proc/version 2>/dev/null; then
+                echo "wsl"
+            else
+                echo "linux"
+            fi
+            ;;
+        Darwin*) echo "macos" ;;
+        MINGW*|MSYS*|CYGWIN*) echo "gitbash" ;;
+        *)       echo "unknown" ;;
+    esac
+}
+
+# Check for required commands
+check_requirements() {
+    local missing=()
+    for cmd in curl unzip; do
+        command -v "$cmd" &>/dev/null || missing+=("$cmd")
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log_error "Missing required tools: ${missing[*]}"
+        log_info "Install them with your package manager (apt, brew, etc.)"
+        exit 1
+    fi
+}
+
+# Test internet connectivity
+test_internet() {
+    if curl -s --connect-timeout 5 -o /dev/null https://www.google.com 2>/dev/null; then
+        return 0
+    fi
+    log_error "Internet connection required. Please check your connection."
+    exit 1
+}
+
+# Get config directory (XDG-compliant)
+get_config_dir() {
+    if [[ -n "$XDG_CONFIG_HOME" ]]; then
+        echo "$XDG_CONFIG_HOME/bash"
+    else
+        echo "$HOME/.config/bash"
+    fi
+}
+
+# Install Oh My Posh
+install_oh_my_posh() {
+    local os
+    os=$(detect_os)
+
+    if command -v oh-my-posh &>/dev/null; then
+        log_info "Oh My Posh already installed."
+        return 0
+    fi
+
+    log_info "Installing Oh My Posh..."
+    if [[ "$os" == "macos" ]] && command -v brew &>/dev/null; then
+        brew install jandedobbeleer/oh-my-posh/oh-my-posh
+    else
+        curl -s https://ohmyposh.dev/install.sh | bash -s
+        # Ensure oh-my-posh is in PATH
+        if [[ -f "$HOME/bin/oh-my-posh" ]]; then
+            export PATH="$HOME/bin:$PATH"
+        elif [[ -f "$HOME/.local/bin/oh-my-posh" ]]; then
+            export PATH="$HOME/.local/bin:$PATH"
+        fi
+    fi
+    log_info "Oh My Posh installed."
+}
+
+# Install zoxide
+install_zoxide() {
+    local os
+    os=$(detect_os)
+
+    if command -v zoxide &>/dev/null; then
+        log_info "zoxide already installed."
+        return 0
+    fi
+
+    log_info "Installing zoxide..."
+    if [[ "$os" == "macos" ]] && command -v brew &>/dev/null; then
+        brew install zoxide
+    elif [[ "$os" == "gitbash" ]]; then
+        curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
+    elif [[ "$os" == "linux" ]] || [[ "$os" == "wsl" ]]; then
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get update && sudo apt-get install -y zoxide 2>/dev/null || {
+                curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
+            }
+        elif command -v dnf &>/dev/null; then
+            sudo dnf install -y zoxide
+        elif command -v pacman &>/dev/null; then
+            sudo pacman -S --noconfirm zoxide
+        else
+            curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
+        fi
+    fi
+    log_info "zoxide installed."
+}
+
+# Install eza (modern ls with icons - bash equivalent of Terminal-Icons)
+install_eza() {
+    local os
+    os=$(detect_os)
+
+    if command -v eza &>/dev/null; then
+        log_info "eza already installed."
+        return 0
+    fi
+
+    if [[ "$os" == "gitbash" ]]; then
+        log_warn "eza: Install manually via scoop/cargo on Windows, or use standard ls"
+        return 0
+    fi
+
+    log_info "Installing eza..."
+    if [[ "$os" == "macos" ]] && command -v brew &>/dev/null; then
+        brew install eza
+    elif [[ "$os" == "linux" ]] || [[ "$os" == "wsl" ]]; then
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get install -y eza 2>/dev/null || log_warn "eza not in apt. Install manually: https://github.com/eza-community/eza"
+        elif command -v dnf &>/dev/null; then
+            sudo dnf install -y eza
+        elif command -v pacman &>/dev/null; then
+            sudo pacman -S --noconfirm eza
+        else
+            log_warn "Install eza manually: https://github.com/eza-community/eza"
+        fi
+    fi
+}
+
+# Install Nerd Fonts (Cascadia Code)
+install_nerd_fonts() {
+    local font_name="CascadiaCode"
+    local version="3.2.1"
+    local os
+    os=$(detect_os)
+
+    if [[ "$os" == "gitbash" ]]; then
+        log_warn "Nerd Fonts: On Windows, run the PowerShell setup for font install, or install manually from https://www.nerdfonts.com/font-downloads"
+        return 0
+    fi
+
+    if [[ "$os" == "macos" ]]; then
+        if command -v brew &>/dev/null; then
+            log_info "Installing Nerd Font (Cascadia Code)..."
+            brew tap homebrew/cask-fonts 2>/dev/null || true
+            brew install --cask font-caskaydia-cove-nerd-font 2>/dev/null || brew install --cask font-cascadia-code-nerd-font
+            log_info "Nerd Font installed. Set it in your terminal preferences."
+            return 0
+        fi
+    fi
+
+    local font_dir
+    font_dir="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
+    mkdir -p "$font_dir"
+
+    if fc-list 2>/dev/null | grep -qi "CaskaydiaCove Nerd Font"; then
+        log_info "CaskaydiaCove Nerd Font already installed."
+        return 0
+    fi
+
+    log_info "Installing CaskaydiaCove Nerd Font..."
+    local zip_dir
+    zip_dir=$(mktemp -d)
+    local zip_file="$zip_dir/${font_name}.zip"
+    curl -sL "https://github.com/ryanoasis/nerd-fonts/releases/download/v${version}/${font_name}.zip" -o "$zip_file"
+    unzip -q -o "$zip_file" -d "$zip_dir"
+    cp -f "$zip_dir"/*.ttf "$font_dir/" 2>/dev/null || cp -f "$zip_dir"/*/*.ttf "$font_dir/" 2>/dev/null || true
+    rm -rf "$zip_dir"
+    fc-cache -fv 2>/dev/null || true
+    log_info "Font installed to $font_dir. Set 'CaskaydiaCove Nerd Font' in your terminal."
+}
+
+# Download Oh My Posh theme (my_layout.omp.json)
+install_theme() {
+    local config_dir
+    config_dir=$(get_config_dir)
+    mkdir -p "$config_dir"
+
+    # Script dir = linux/, repo root = parent
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local repo_root
+    repo_root="$(cd "$script_dir/.." && pwd)"
+    local theme_src="$repo_root/my_layout.omp.json"
+    local theme_dest="$config_dir/my_layout.omp.json"
+
+    if [[ -f "$theme_src" ]]; then
+        cp "$theme_src" "$theme_dest"
+        log_info "Theme copied to $theme_dest"
+    else
+        log_info "Downloading cobalt2 theme..."
+        curl -sL "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json" -o "$theme_dest"
+        log_info "Theme downloaded to $theme_dest"
+    fi
+}
+
+# Setup bash profile
+setup_profile() {
+    local config_dir
+    config_dir=$(get_config_dir)
+    mkdir -p "$config_dir"
+
+    # Script dir = linux/, repo root = parent
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local bashrc_src="$script_dir/bashrc"
+    local bashrc_dest="$config_dir/bashrc"
+    local profile_bash="$config_dir/profile.bash"
+
+    if [[ ! -f "$bashrc_src" ]]; then
+        log_error "bashrc not found. Run setup from repo: ./linux/setup.sh"
+        exit 1
+    fi
+
+    cp "$bashrc_src" "$bashrc_dest"
+    log_info "Bash profile installed to $bashrc_dest"
+
+    # Create profile.bash if it doesn't exist (user overrides)
+    if [[ ! -f "$profile_bash" ]]; then
+        if [[ -f "$script_dir/profile.bash" ]]; then
+            cp "$script_dir/profile.bash" "$profile_bash"
+        else
+            cat > "$profile_bash" << 'PROFILE_EOF'
+# User overrides - customize your bash experience here
+# This file is sourced after the main bashrc
+
+# Example: custom alias
+# alias mycommand='something'
+
+# Example: custom theme path
+# export OMP_CONFIG="$HOME/.config/bash/my_layout.omp.json"
+PROFILE_EOF
+        fi
+        log_info "Created $profile_bash for your customizations"
+    fi
+
+    # Add sourcing to .bashrc if not already present
+    local source_line="[[ -f \"$bashrc_dest\" ]] && source \"$bashrc_dest\""
+    if ! grep -qF "$bashrc_dest" "$HOME/.bashrc" 2>/dev/null; then
+        echo "" >> "$HOME/.bashrc"
+        echo "# PowerShell-setup bash profile" >> "$HOME/.bashrc"
+        echo "$source_line" >> "$HOME/.bashrc"
+        log_info "Added profile to ~/.bashrc"
+    else
+        log_info "Profile already in ~/.bashrc"
+    fi
+
+    # macOS: ensure .bashrc is sourced from .bash_profile for login shells
+    if [[ "$(detect_os)" == "macos" ]]; then
+        if [[ -f "$HOME/.bash_profile" ]]; then
+            if ! grep -qF '.bashrc' "$HOME/.bash_profile" 2>/dev/null; then
+                echo "" >> "$HOME/.bash_profile"
+                echo "[[ -f ~/.bashrc ]] && source ~/.bashrc" >> "$HOME/.bash_profile"
+                log_info "Added .bashrc source to ~/.bash_profile"
+            fi
+        else
+            echo "[[ -f ~/.bashrc ]] && source ~/.bashrc" > "$HOME/.bash_profile"
+            log_info "Created ~/.bash_profile to source ~/.bashrc"
+        fi
+    fi
+}
+
+# Main
+main() {
+    log_info "Bash setup starting..."
+    check_requirements
+    test_internet
+
+    local os
+    os=$(detect_os)
+    log_info "Detected OS: $os"
+
+    setup_profile
+    install_oh_my_posh
+    install_zoxide
+    install_eza
+    install_nerd_fonts
+    install_theme
+
+    echo ""
+    log_info "Setup complete!"
+    log_info "Restart your terminal or run: source ~/.bashrc"
+    log_info "Set your terminal font to 'CaskaydiaCove Nerd Font' for full icon support."
+}
+
+main "$@"

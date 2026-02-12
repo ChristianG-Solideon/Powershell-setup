@@ -2,13 +2,65 @@
 
 A comprehensive PowerShell profile configuration that enhances your command-line experience with modern tools, productivity shortcuts, and beautiful theming. Based on Chris Titus Tech's PowerShell profile with customizations and improvements.
 
+**Bash users**: A bash counterpart is included so your Linux/macOS/WSL terminal can match the same look and feel. See [Bash Installation](#-bash-installation) below.
+
+## 📁 Project Structure
+
+```
+├── windows/           # Windows / PowerShell
+│   ├── setup.ps1      # PowerShell installer
+│   ├── profile.ps1    # User override template (theme, debug, etc.)
+│   └── Microsoft.PowerShell_profile.ps1   # Reference copy of main profile
+├── linux/             # Linux / macOS / WSL / Bash
+│   ├── setup.sh       # Bash installer
+│   ├── bashrc         # Main bash profile
+│   └── profile.bash   # User override template
+├── my_layout.omp.json # Shared Oh My Posh theme (used by both)
+└── README.md
+```
+
 ## 🚀 Quick Installation
 
-Install this PowerShell profile with a single command:
+### One-Line Run (copy & paste)
+
+**Windows (PowerShell as Administrator):**
+```powershell
+irm "https://github.com/OWNER/Powershell-setup/raw/main/windows/setup.ps1" | iex
+```
+
+**Linux / macOS / WSL:**
+```bash
+git clone https://github.com/OWNER/Powershell-setup.git && cd Powershell-setup && chmod +x linux/setup.sh && ./linux/setup.sh
+```
+
+Replace `OWNER` with your GitHub username (or org). For Windows, run PowerShell as Administrator.
+
+---
+
+### From a local clone
+
+**Windows**
+
+From the repo root, run:
 
 ```powershell
-irm "https://github.com/ChrisTitusTech/powershell-profile/raw/main/setup.ps1" | iex
+.\windows\setup.ps1
 ```
+
+**Linux / macOS / WSL**
+
+```bash
+git clone <your-repo-url> powershell-setup && cd powershell-setup
+chmod +x linux/setup.sh && ./linux/setup.sh
+```
+
+Or from an existing clone:
+
+```bash
+./linux/setup.sh
+```
+
+The script installs Oh My Posh, zoxide, eza (ls with icons), Nerd Fonts, and configures your bash profile. Restart your terminal or run `source ~/.bashrc`.
 
 ## ✨ Features
 
@@ -63,6 +115,18 @@ function Clear-Cache_Override {
 }
 ```
 
+### Bash Customization
+
+Edit `~/.config/bash/profile.bash` (or `$XDG_CONFIG_HOME/bash/profile.bash`) to add your own aliases and overrides:
+
+```bash
+# Custom aliases
+alias mycommand='something'
+
+# Custom theme path
+export OMP_CONFIG="$HOME/.config/bash/my_layout.omp.json"
+```
+
 ## 📋 Available Commands
 
 ### Git Shortcuts
@@ -113,22 +177,30 @@ function Clear-Cache_Override {
 
 ## 📦 Requirements
 
+### PowerShell
 - **PowerShell 5.1+** or **PowerShell Core 6+**
 - **Windows Terminal** (recommended)
 - **Oh My Posh** (auto-installed)
 - **Terminal-Icons** module (auto-installed)
 - **Zoxide** (auto-installed via winget)
 
+### Bash
+- **Bash 4+**
+- **curl**, **unzip** (for setup)
+- **Oh My Posh** (auto-installed)
+- **eza** (auto-installed where available; ls with icons)
+- **zoxide** (auto-installed)
+
 ## 🎨 Theme Configuration
 
-The profile includes a custom Oh My Posh theme (`my_layout.omp.json`) with:
+Both PowerShell and Bash use the same Oh My Posh theme (`my_layout.omp.json`) for a consistent look:
 - Clean, modern design with diamond segments
 - Git status indicators
 - Custom color palette
 - User/host name mapping
 - Virtual environment support
 
-## 🔍 Debug Mode
+## 🔍 Debug Mode (PowerShell)
 
 Enable debug mode to skip auto-updates and see detailed information:
 
@@ -143,13 +215,9 @@ In debug mode:
 
 ## 📚 Help
 
-Use the built-in help system:
+**PowerShell**: Run `Show-Help` to display all commands.
 
-```powershell
-Show-Help
-```
-
-This displays all available commands and their descriptions.
+**Bash**: Run `show_help` to display all commands.
 
 ## 🤝 Contributing
 

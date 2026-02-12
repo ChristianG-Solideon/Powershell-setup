@@ -1,0 +1,225 @@
+# Bash Profile - PowerShell-setup counterpart
+# Mirrors the look and feel of the PowerShell profile
+
+# -----------------------------------------------------------------------------
+# Oh My Posh - Prompt theming (same theme as PowerShell)
+# -----------------------------------------------------------------------------
+_get_omp_config() {
+    local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash"
+    local custom="$config_dir/my_layout.omp.json"
+    if [[ -f "$custom" ]]; then
+        echo "$custom"
+    else
+        echo "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json"
+    fi
+}
+
+if command -v oh-my-posh &>/dev/null; then
+    eval "$(oh-my-posh init bash --config "$(_get_omp_config)")"
+fi
+
+# -----------------------------------------------------------------------------
+# Zoxide - Smart directory jumping (z command)
+# -----------------------------------------------------------------------------
+if command -v zoxide &>/dev/null; then
+    eval "$(zoxide init bash --cmd z)"
+fi
+
+# -----------------------------------------------------------------------------
+# Editor
+# -----------------------------------------------------------------------------
+if [[ -z "$EDITOR" ]]; then
+    if command -v nvim &>/dev/null; then
+        export EDITOR=nvim
+    elif command -v vim &>/dev/null; then
+        export EDITOR=vim
+    elif command -v vi &>/dev/null; then
+        export EDITOR=vi
+    elif command -v code &>/dev/null; then
+        export EDITOR=code
+    else
+        export EDITOR=nano
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# Enhanced ls (eza - Terminal-Icons equivalent)
+# -----------------------------------------------------------------------------
+if command -v eza &>/dev/null; then
+    alias ls='eza --icons --git'
+    alias la='eza -la --icons --git'
+    alias ll='eza -la --icons --git'
+else
+    alias la='ls -la'
+    alias ll='ls -la'
+fi
+
+# -----------------------------------------------------------------------------
+# Git Shortcuts
+# -----------------------------------------------------------------------------
+alias gs='git status'
+alias ga='git add .'
+gc() { git commit -m "$*"; }
+alias gpush='git push'
+alias gpull='git pull'
+alias gcl='git clone'
+gcom() { git add . && git commit -m "$*"; }
+lazyg() { git add . && git commit -m "$*" && git push; }
+g() { __zoxide_z github 2>/dev/null || cd ~/github 2>/dev/null || cd ~; }
+
+# -----------------------------------------------------------------------------
+# File Operations
+# -----------------------------------------------------------------------------
+mkcd() { mkdir -p "$1" && cd "$1"; }
+nf() { touch "$1"; }
+touch() { : > "$1"; }
+unzip() { command unzip "$1" -d .; }
+
+# Find files recursively
+ff() { find . -iname "*$1*" 2>/dev/null; }
+
+# -----------------------------------------------------------------------------
+# Navigation Shortcuts
+# -----------------------------------------------------------------------------
+docs() { cd "${XDG_DOCUMENTS_DIR:-$HOME/Documents}" 2>/dev/null || cd ~/Documents; }
+dtop() { cd "${XDG_DESKTOP_DIR:-$HOME/Desktop}" 2>/dev/null || cd ~/Desktop; }
+
+# -----------------------------------------------------------------------------
+# Utilities
+# -----------------------------------------------------------------------------
+which() { command -v "$1"; }
+head() { command head -n "${2:-10}" "$1"; }
+tail() { command tail -n "${2:-10}" "$1"; }
+
+# Process management
+pkill() { killall "$1"; }
+pgrep() { ps aux | grep -v grep | grep "$1"; }
+k9() { killall "$1"; }
+
+# -----------------------------------------------------------------------------
+# Network (cross-platform where possible)
+# -----------------------------------------------------------------------------
+get_pub_ip() { curl -s ifconfig.me 2>/dev/null || curl -s icanhazip.com; }
+alias pubip='get_pub_ip'
+
+# -----------------------------------------------------------------------------
+# Clipboard (macOS vs Linux)
+# -----------------------------------------------------------------------------
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    cpy() { echo -n "$*" | pbcopy; }
+    pst() { pbpaste; }
+else
+    if command -v xclip &>/dev/null; then
+        cpy() { echo -n "$*" | xclip -selection clipboard; }
+        pst() { xclip -selection clipboard -o; }
+    elif command -v xsel &>/dev/null; then
+        cpy() { echo -n "$*" | xsel --clipboard --input; }
+        pst() { xsel --clipboard --output; }
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# Hastebin / paste (hb)
+# -----------------------------------------------------------------------------
+hb() {
+    if [[ -z "$1" ]]; then
+        echo "Usage: hb <file>" >&2
+        return 1
+    fi
+    if [[ ! -f "$1" ]]; then
+        echo "File not found: $1" >&2
+        return 1
+    fi
+    local key
+    key=$(curl -s -X POST -H "Content-Type: text/plain" --data-binary @"$1" "http://bin.christitus.com/documents" | sed -n 's/.*"key":"\([^"]*\)".*/\1/p')
+    if [[ -n "$key" ]]; then
+        local url="http://bin.christitus.com/$key"
+        echo "$url"
+        if command -v pbcopy &>/dev/null; then
+            echo -n "$url" | pbcopy
+        elif command -v xclip &>/dev/null; then
+            echo -n "$url" | xclip -selection clipboard
+        fi
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# Profile editing
+# -----------------------------------------------------------------------------
+ep() {
+    local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash"
+    local profile_bash="$config_dir/profile.bash"
+    if [[ -f "$profile_bash" ]]; then
+        $EDITOR "$profile_bash"
+    else
+        $EDITOR ~/.bashrc
+    fi
+}
+
+reload_profile() { source ~/.bashrc; }
+
+# -----------------------------------------------------------------------------
+# System info
+# -----------------------------------------------------------------------------
+sysinfo() {
+    echo "=== System ==="
+    uname -a
+    echo ""
+    echo "=== Uptime ==="
+    uptime
+}
+
+# -----------------------------------------------------------------------------
+# df replacement (disk space)
+# -----------------------------------------------------------------------------
+alias df='df -h'
+
+# -----------------------------------------------------------------------------
+# Help
+# -----------------------------------------------------------------------------
+show_help() {
+    cat << 'HELP'
+Bash Profile Help
+=================
+
+Git Shortcuts
+  gs, ga, gc <msg>, gpush, gpull, gcl, gcom <msg>, lazyg <msg>, g
+
+File Operations
+  la, ll        - List files (with eza icons if installed)
+  mkcd <dir>    - Create and cd to directory
+  nf <name>     - Create new file
+  touch <file>  - Create empty file
+  unzip <file>  - Extract zip
+  ff <name>     - Find files recursively
+
+Navigation
+  docs, dtop    - Go to Documents/Desktop
+  z <path>      - Smart cd (zoxide)
+
+Utilities
+  ep            - Edit profile
+  reload_profile - Reload .bashrc
+  pubip         - Get public IP
+  cpy, pst      - Copy/paste to clipboard
+  hb <file>     - Upload to hastebin
+  sysinfo       - System info
+
+Use 'show_help' to display this.
+HELP
+}
+
+# -----------------------------------------------------------------------------
+# Source user overrides
+# -----------------------------------------------------------------------------
+_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash"
+if [[ -f "$_config_dir/profile.bash" ]]; then
+    source "$_config_dir/profile.bash"
+fi
+unset _config_dir
+
+# -----------------------------------------------------------------------------
+# Welcome
+# -----------------------------------------------------------------------------
+# Uncomment to show help on new shells:
+# show_help
